@@ -34,7 +34,7 @@ def pose_spherical(theta, phi, radius):
     return c2w
 
 
-def load_blender_data(basedir, half_res=False, testskip=1):
+def load_blender_data(basedir, half_res=False, testskip=1, gk_scale=False):
     splits = ['train', 'holdout', 'val', 'test']
     metas = {}
     for s in splits:
@@ -70,6 +70,17 @@ def load_blender_data(basedir, half_res=False, testskip=1):
     imgs = np.concatenate(all_imgs, 0)
     poses = np.concatenate(all_poses, 0)
     
+    znear = 2.
+    zfar = 6.
+
+    if gk_scale:
+        world_o = poses[:, :3, 3]
+        avg_cam_center = np.mean(world_o, axis=1, keepdims=True)
+        max_radius = np.linalg.norm(world_o - avg_cam_center, axis=1).max()
+        poses[:, :3, 3] /= max_radius
+        znear /= max_radius
+        zfar /= max_radius
+
     H, W = imgs[0].shape[:2]
     camera_angle_x = float(meta['camera_angle_x'])
     focal = .5 * W / np.tan(.5 * camera_angle_x)
@@ -88,7 +99,7 @@ def load_blender_data(basedir, half_res=False, testskip=1):
         imgs = imgs_half_res
         # imgs = tf.image.resize_area(imgs, [400, 400]).numpy()
 
-        
-    return imgs, poses, render_poses, [H, W, focal], i_split
+
+    return imgs, poses, render_poses, [H, W, focal], i_split, znear, zfar
 
 
