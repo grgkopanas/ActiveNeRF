@@ -56,7 +56,7 @@ def load_blender_data(basedir, half_res=False, testskip=1, gk_scale=False):
             skip = testskip
             
         for frame in meta['frames'][::skip]:
-            fname = os.path.join(basedir, frame['file_path'] + '.png')
+            fname = os.path.join(basedir, frame['file_path'])
             imgs.append(imageio.imread(fname))
             poses.append(np.array(frame['transform_matrix']))
         imgs = (np.array(imgs) / 255.).astype(np.float32) # keep all 4 channels (RGBA)
@@ -80,6 +80,7 @@ def load_blender_data(basedir, half_res=False, testskip=1, gk_scale=False):
         poses[:, :3, 3] /= max_radius
         znear /= max_radius
         zfar /= max_radius
+        print(f"{max_radius=}, {znear=}, {zfar=}")
 
     H, W = imgs[0].shape[:2]
     camera_angle_x = float(meta['camera_angle_x'])
