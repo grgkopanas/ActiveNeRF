@@ -723,31 +723,34 @@ def train():
         if i%args.active_iter==0 and i!=0:
             print('start evaluation:')
             print('get rays')
-            rays = np.stack([get_rays_np(H, W, focal, p) for p in poses.cpu().numpy()[:,:3,:4]], 0) # [N, ro+rd, H, W, 3]
+            random_idxs = np.random.choice(i_holdout, 100)
+            rays = np.stack([get_rays_np(H, W, focal, p) for p in poses.cpu().numpy()[random_idxs,:3,:4]], 0) # [N, ro+rd, H, W, 3]
             print('done, concats')
 
             # get all holdout rays (candidate)
-            rays_rgb_all = torch.cat([torch.tensor(rays).to(device), images[:,None]], 1) # [N, ro+rd+rgb, H, W, 3]
-            rays_rgb_all = rays_rgb_all.permute(0,2,3,1,4) # [N, H, W, ro+rd+rgb, 3]
+            rays_rgb_selected = torch.cat([torch.tensor(rays).to(device), images[random_idxs,None]], 1) # [N, ro+rd+rgb, H, W, 3]
+            rays_rgb_selected = rays_rgb_selected.permute(0,2,3,1,4) # [N, H, W, ro+rd+rgb, 3]
 
-            rays_rgb_holdout = torch.cat([rays_rgb_all[j, ::args.ds_rate, ::args.ds_rate] for j in i_holdout], 0)
+            rays_rgb_holdout = rays_rgb_selected[:, ::args.ds_rate, ::args.ds_rate]
             rays_rgb_holdout = torch.reshape(rays_rgb_holdout, [-1,3,3]) # [(N-1)*H*W, ro+rd+rgb, 3]
             rays_rgb_holdout = torch.transpose(rays_rgb_holdout, 0, 1)
             batch_rays = rays_rgb_holdout[:2]
 
             print('before evaluation:', i_train, i_holdout)
             # capture new rays
-            hold_out_index = choose_new_k(H//args.ds_rate, W//args.ds_rate, focal, batch_rays, args.choose_k, **render_kwargs_test)
-            i_train = np.append(i_train, i_holdout[hold_out_index])
-            i_holdout = np.delete(i_holdout, hold_out_index)
+            hold_out_index = random_idxs[choose_new_k(H//args.ds_rate, W//args.ds_rate, focal, batch_rays, args.choose_k, **render_kwargs_test)]
+            i_train = np.append(i_train, hold_out_index)
+            i_holdout = np.setdiff1d(i_holdout, hold_out_index)
             print('after evaluation:', i_train, i_holdout, hold_out_index)
 
             # update training rays
-            rays_rgb_train = torch.stack([rays_rgb_all[i] for i in i_train], 0) # train images only
-            rays_rgb_train = torch.reshape(rays_rgb_train, [-1,3,3]) # [(N-1)*H*W, ro+rd+rgb, 3]
+            rays_rgb_train = np.stack([rays_rgb_all[i] for i in i_train], 0) # train images only
+            rays_rgb_train = np.reshape(rays_rgb_train, [-1,3,3]) # [(N-1)*H*W, ro+rd+rgb, 3]
 
             print('shuffle rays')
             np.random.shuffle(rays_rgb_train)
+
+            rays_rgb_train = torch.Tensor(rays_rgb_train).to(device)
 
             f = os.path.join(basedir, expname, 'args.txt')
             with open(f, 'a') as file:
