@@ -559,10 +559,10 @@ def config_parser():
                         help='frequency of render_poses video saving')
 
     # configs for ActiveNeRF
-    parser.add_argument("--i_all",   type=int, default=500000) # Training iterations, 500000 for full-res nerfs
-    parser.add_argument('--active_iter', type=int, nargs='+', default=[100000, 200000, 300000, 400000]) # Iterations for active learning
+    parser.add_argument("--i_all",   type=int, default=550000) # Training iterations, 500000 for full-res nerfs
+    parser.add_argument('--active_iter', type=int, default=50000) # Iterations for active learning
     parser.add_argument("--init_image",   type=int, default=10) # initial number of images, only for llff dataset
-    parser.add_argument("--choose_k",   type=int, default=4) # The number of new captured data for each active iter
+    parser.add_argument("--choose_k",   type=int, default=8) # The number of new captured data for each active iter
     parser.add_argument("--beta_min",   type=float, default=0.01) # Minimun value for uncertainty
     parser.add_argument("--w",   type=float, default=0.01) # Strength for regularization as in Eq.(11)
     parser.add_argument("--ds_rate",   type=int, default=2) # Quality-efficiency trade-off factor as in Sec. 5.2
@@ -720,7 +720,7 @@ def train():
     for i in trange(start, N_iters):
 
         # active evaluation
-        if i in args.active_iter:
+        if i%args.active_iter==0 and i!=0:
             print('start evaluation:')
             print('get rays')
             rays = np.stack([get_rays_np(H, W, focal, p) for p in poses.cpu().numpy()[:,:3,:4]], 0) # [N, ro+rd, H, W, 3]
